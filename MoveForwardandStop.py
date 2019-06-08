@@ -1,16 +1,19 @@
 #!/usr/bin/python
 import RPi.GPIO as GPIO
 import time
+from gpiozero import PWMOutputDevice
+import board
+from adafruit_ina219 import INA219
  
 GPIO.setmode(GPIO.BCM)
- 
+
 GPIO_TRIGGER1 = 22
 GPIO_TRIGGER2 = 18
 #GPIO_TRIGGER3 = 5
 #GPIO_TRIGGER4 = 5
-GPIO_ECHO1 = 19
+GPIO_ECHO1 = 26
 GPIO_ECHO2 = 17
-GPIO_ECHO3 = 26
+GPIO_ECHO3 = 19
 GPIO_ECHO4 = 25
 GPIO_ECHO5 = 5
 GPIO_ECHO6 = 6
@@ -55,7 +58,28 @@ TIMEOUT=.02
 
 ELAPSED = time.time()
 
+a = PWMOutputDevice(16, frequency = 20000)
+b = PWMOutputDevice(23, frequency = 20000)
+
+DIR1 = 12
+DIR2 = 24
+
+GPIO.setup(DIR1,GPIO.OUT)
+GPIO.setup(DIR2,GPIO.OUT)
+
+Direction = "Left"
+
+DistanceArray=[]
+
+PWR = .2
+
+DriveTimeOut = 10000
+
+DistanceOut = 40
+
 def distance():
+    
+    DistanceArray=[]
     
     i1=0
     i2=0
@@ -189,7 +213,45 @@ def distance():
     # multiply with the sonic speed (34300 cm/s)
     # and divide by 2, because there and back
     #distance = (TimeElapsed1 * 34300) / 2
- 
+
+    Distance1 = (((StopTime1 - StartTime) * 34300) / 2)
+    Distance2 = (((StopTime2 - StartTime) * 34300) / 2)
+    Distance3 = (((StopTime3 - StartTime) * 34300) / 2)
+    Distance4 = (((StopTime4 - StartTime) * 34300) / 2)
+    Distance5 = (((StopTime5 - StartTime) * 34300) / 2)
+    Distance6 = (((StopTime6 - StartTime) * 34300) / 2)
+
+    if Distance1 > 0:
+        DistanceArray.append(Distance1)
+    else:
+        DistanceArray.append(6969)
+        
+    if Distance2 > 0:
+        DistanceArray.append(Distance2)
+    else:
+        DistanceArray.append(6969)
+        
+    if Distance3 > 0:
+        DistanceArray.append(Distance3)
+    else:
+        DistanceArray.append(6969)
+        
+    if Distance4 > 0:
+        DistanceArray.append(Distance4)
+    else:
+        DistanceArray.append(6969)
+        
+    if Distance5 > 0:
+        DistanceArray.append(Distance5)
+    else:
+        DistanceArray.append(6969)
+        
+    if Distance6 > 0:
+        DistanceArray.append(Distance6)
+    else:
+        DistanceArray.append(6969)
+        
+
     print ("Measured Distance1 = %.1f cm" % (((StopTime1 - StartTime) * 34300) / 2))
     print ("Measured Distance2 = %.1f cm" % (((StopTime2 - StartTime) * 34300) / 2))
     print ("Measured Distance3 = %.1f cm" % (((StopTime3 - StartTime) * 34300) / 2))
@@ -204,19 +266,118 @@ def distance():
 #    print ("Measured Distance12 = %.1f cm" % (((StopTime6 - StartTime) * 34300) / 2))
 
 
-    #return distance
- 
+    return DistanceArray
+
+
 if __name__ == '__main__':
     try:
-        while True:
-            distance()
-            #dist = distance()
-            #print ("Measured Distance = %.1f cm" % dist)
-            print(time.time()-ELAPSED)
-            ELAPSED = time.time()
-            time.sleep(.15)
+        
+        if Direction == "Reverse":
+            GPIO.output(DIR1,True)
+            GPIO.output(DIR2,False)
+
+            print("Starting Motor...")
+
+
+            DistanceArray = distance()
+            
+            a.value = PWR
+            b.value = PWR
+            
+            timeoutdrive = 0
+            
+            while min(DistanceArray) > DistanceOut:
+                
+                DistanceArray = distance()
+                
+                time.sleep(.1)
+ 
+                timeoutdrive = timeoutdrive + .1
+ 
+        if Direction == "Forward":
+            GPIO.output(DIR1,False)
+            GPIO.output(DIR2,True)
+
+            print("Starting Motor...")
+
+            DistanceArray = distance()
+
+            a.value = PWR
+            b.value = PWR
+            
+
+            timeoutdrive = 0
+            
+            while min(DistanceArray) > DistanceOut:
+                
+                DistanceArray = distance()
+                
+                time.sleep(.1)
+ 
+                timeoutdrive = timeoutdrive + .1
+ 
+ 
+        if Direction == "Left":
+            GPIO.output(DIR1,False)
+            GPIO.output(DIR2,False)
+
+            print("Starting Motor...")
+
+            DistanceArray = distance()
+
+            a.value = PWR
+            b.value = PWR
+        
+            timeoutdrive = 0
+            
+            while min(DistanceArray) > DistanceOut:
+                
+                DistanceArray = distance()
+                
+                time.sleep(.15)
+ 
+                timeoutdrive = timeoutdrive + .1
+ 
+
+        if Direction == "Right":
+            GPIO.output(DIR1,True)
+            GPIO.output(DIR2,True)
+
+            print("Starting Motor...")
+
+            DistanceArray = distance()
+
+            a.value = PWR
+            b.value = PWR
+            
+            timeoutdrive = 0
+            
+            while min(DistanceArray) > DistanceOut:
+                
+                DistanceArray = distance()
+                
+                time.sleep(.1)
+ 
+                timeoutdrive = timeoutdrive + .1
+                   
+                
+        a.value = 0.0
+        b.value = 0.0
+        
+        a.close
+        b.close
+        
+        GPIO.cleanup()
  
         # Reset by pressing CTRL + C
     except KeyboardInterrupt:
-        print("Measurement stopped by User")
+        print("Movement stopped by User")
+        
+        a.value = 0.0
+        b.value = 0.0
+        
+        a.close
+        b.close
+        
         GPIO.cleanup()
+
